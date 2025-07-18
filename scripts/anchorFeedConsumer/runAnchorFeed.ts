@@ -1,4 +1,3 @@
-import { artifacts } from "hardhat";
 import { formatUnits } from "ethers";
 import { AnchorFeedConsumerInstance } from "../../typechain-types";
 
