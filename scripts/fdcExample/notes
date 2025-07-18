@@ -1,0 +1,28 @@
+FDC By Hand: https://dev.flare.network/fdc/guides/fdc-by-hand 
+
+Example is performing an AddressValidity attestation request which requires a single input parameter
+
+
+1. prepareRequest
+- FDC accepts requests as byte strings encoded in a specific format
+- we do that through the verifier server
+- the verifier server checks the validity of input data and returns the `abiEncodedRequest` that can be passed to the FDC
+
+
+
+
+
+
+
+
+XRP TESTNET
+
+Your Testnet Credentials
+Address
+rDDv9bxdewqY821Lm2RpzvZyPrjg3ynCWv
+Secret
+sEdVeHFtkzZQ9EtXGwSGP1PDJmHozRN
+Balance
+10 XRP
+Sequence Number
+8988599
