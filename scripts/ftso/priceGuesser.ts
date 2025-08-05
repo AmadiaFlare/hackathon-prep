@@ -45,6 +45,7 @@ async function getAnchorFeedProof(
       `\nAttempting to fetch proof for voting round: ${votingRoundId}`
     );
     try {
+      // this is where we can fetch the decimals from the response being returned
       const response = await fetch(
         `${daLayerUrl}/api/v0/ftso/anchor-feeds-with-proof?voting_round_id=${votingRoundId}`,
         {
@@ -110,7 +111,8 @@ async function makeGuessOnContract(
   guesserAddress: string
 ): Promise<void> {
   console.log('\n--- Making a Guess ---');
-  const targetPrice = hre.ethers.parseUnits(TARGET_PRICE_USD_STRING, 5);
+  // todo: IS THERE A WAY TO AUTOMATICALLY GET WHAT THE PRICE FEEDS ARE.. YES CALL DA LAYER
+  const targetPrice = hre.ethers.parseUnits(TARGET_PRICE_USD_STRING, 6);
   const predictionText = GUESSER_PREDICTION === 1 ? 'ABOVE' : 'BELOW';
   console.log(
     `Submitting guess that FLR/USD will be ${predictionText} $${TARGET_PRICE_USD_STRING}`
@@ -152,7 +154,8 @@ async function verifyResult(
     }
     
     console.log(
-      `Verified Price: $${hre.ethers.formatUnits(proofData.body.value, 5)}`
+      // fix decimals from the da layer struct
+      `Verified Price: $${hre.ethers.formatUnits(proofData.body.value, 6)}`
     );
     console.log(`Target Price:   $${TARGET_PRICE_USD_STRING}`);
   }
