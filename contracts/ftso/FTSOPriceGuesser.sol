@@ -7,7 +7,7 @@ import {ContractRegistry} from "@flarenetwork/flare-periphery-contracts/coston2/
 /**
  * @title FTSOPriceGuesser
  * @notice A simple contract where users can guess if the FLR/USD price will be above or below a target.
- *         Guesses are resolved by verifying an FTSO proof on-chain.
+ *         Guesses are resolved by verifying an FTSO proof on-chain using an anchorfeed/scaling.
  */
 contract FTSOPriceGuesser {
     enum Prediction {
@@ -73,9 +73,11 @@ contract FTSOPriceGuesser {
 
         // Step 1: Verify the FTSO proof is valid and from a trusted source.
         FtsoV2Interface ftsoV2 = ContractRegistry.getFtsoV2();
-        require(ftsoV2.verifyFeedData(_proof), "FTSO proof verification failed");
+        require(ftsoV2.verifyFeedData(_proof), "FTSO proof verification failed"); // verifyFeedData
 
         // Step 2: Ensure the proof is for the FLR/USD price feed.
+        // when you query the da layer, you can get a valid proof for x number of feeds
+        // this require line ensure you are only getting the feedId for the desiered price
         require(_proof.body.id == FLR_USD_ID, "Proof is not for FLR/USD");
 
         // Step 3: Determine the outcome based on the verified price.
