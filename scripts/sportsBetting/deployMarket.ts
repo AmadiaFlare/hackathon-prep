@@ -1,17 +1,17 @@
-import hre, { ethers, run } from "hardhat";
+import hre, { run } from "hardhat";
 import fs from "fs";
+import prompts from "prompts";
 import { SportsMarketInstance } from "../../typechain-types";
-import { sleep } from "../utils/core";
 
 const SportsMarket = artifacts.require("SportsMarket");
 
-// TheSportsDB API MLB ID
-const MLB_LEAGUE_ID = "4424";
+// This function now fetches all MLB games for `today`.
+async function fetchGameByDate() {
+    // Get today's date in YYYY-MM-DD format
+    const today = new Date().toISOString().slice(0, 10);
+    const url = `https://www.thesportsdb.com/api/v1/json/123/eventsday.php?d=${today}`;
 
-async function fetchNextMlbGame() {
-
-    const url = `https://www.thesportsdb.com/api/v1/json/123/eventsnextleague.php?id=${MLB_LEAGUE_ID}`;
-    console.log(`Fetching upcoming games from: ${url}`);
+    console.log(`Fetching MLB games for today (${today}) from: ${url}`);
 
     const response = await fetch(url);
     if (!response.ok) {
@@ -21,54 +21,66 @@ async function fetchNextMlbGame() {
     const data = await response.json();
 
     if (!data.events || data.events.length === 0) {
-        throw new Error(`No upcoming MLB games found for league ID ${MLB_LEAGUE_ID}.`);
+        throw new Error(`No games found for ${today}.`);
     }
 
-    // Always select the first upcoming event, even if it has already started.
-    const nextEvent = data.events[0];
-    console.log(`Fetched event: ${nextEvent.strEvent}`);
+    // Let the user choose which game to create a market for
+    const choices = data.events.map((event: any) => ({
+        title: `${event.strEvent} (ID: ${event.idEvent})`,
+        value: event.idEvent,
+    }));
 
-    // --- TESTING MODIFICATION ---
-    // Instead of using the real timestamp, we will create an artificial one
-    // that is 1 hour in the future. This guarantees the market is open for betting.
+    const { selectedEventId } = await prompts({
+        type: 'select',
+        name: 'selectedEventId',
+        message: 'Which game would you like to create a market for?',
+        choices,
+    });
+
+    const selectedEvent = data.events.find((e: any) => e.idEvent === selectedEventId);
+
+    if (!selectedEvent) {
+        throw new Error("Invalid selection.");
+    }
+
+    console.log(`Selected event: ${selectedEvent.strEvent}`);
+
+    // Use an artificial timestamp to ensure the market is open for betting
     const nowInSeconds = Math.floor(Date.now() / 1000);
-    const testEventTimestamp = nowInSeconds + 3600; // 3600 seconds = 1 hour from now
+    const testEventTimestamp = nowInSeconds + 3600; // 1 hour from now
 
-    console.log(`\n*** TESTING NOTE ***`);
-    console.log(`Real event time: ${new Date(new Date(`${nextEvent.strTimestamp}+00:00`).getTime()).toUTCString()}`);
+    console.log(`\n*** DEPLOYMENT NOTE ***`);
+    console.log(`Real event time: ${new Date(new Date(`${selectedEvent.strTimestamp}+00:00`).getTime()).toUTCString()}`);
     console.log(`Using artificial timestamp for deployment: ${new Date(testEventTimestamp * 1000).toUTCString()}`);
     console.log(`********************\n`);
 
-
     return {
-        matchId: parseInt(nextEvent.idEvent, 10),
-        homeTeamName: nextEvent.strHomeTeam,
-        awayTeamName: nextEvent.strAwayTeam,
-        eventTimestamp: testEventTimestamp, // Use the artificial future timestamp for testing delpoyment
+        matchId: parseInt(selectedEvent.idEvent, 10),
+        homeTeamName: selectedEvent.strHomeTeam,
+        awayTeamName: selectedEvent.strAwayTeam,
+        eventTimestamp: testEventTimestamp,
     };
 }
 
-
 async function main() {
-    console.log("--- Step 1: Fetching Next MLB Game Data ---");
-    const gameDetails = await fetchNextMlbGame();
+    console.log("--- Step 1: Fetching Game Data ---");
+    const gameDetails = await fetchGameByDate();
 
-    console.log(`Deploying SportsMarket contract...`);
+    console.log(`\n--- Step 2: Deploying SportsMarket Contract ---`);
     console.log(`Deploying market for match: ${gameDetails.homeTeamName} vs ${gameDetails.awayTeamName}`);
     console.log(`Match ID: ${gameDetails.matchId}`);
-    console.log(`Event Start Timestamp: ${new Date(gameDetails.eventTimestamp * 1000).toUTCString()}`);
-
+    console.log(`Event Start Timestamp (for contract): ${new Date(gameDetails.eventTimestamp * 1000).toUTCString()}`);
 
     const args: any[] = [
         gameDetails.matchId,
         gameDetails.homeTeamName,
         gameDetails.awayTeamName,
-        gameDetails.eventTimestamp
+        gameDetails.eventTimestamp,
     ];
 
     const sportsMarket: SportsMarketInstance = await SportsMarket.new(...args);
     
-    console.log(`SportsMarket contract deployed to: ${sportsMarket.address} on ${hre.network.name}`);
+    console.log(`\nSportsMarket contract deployed to: ${sportsMarket.address} on ${hre.network.name}`);
 
     // --- Step 3: Updating Configuration File ---
     const configContent = `// This file is auto-generated by deployMarket.ts
@@ -80,8 +92,9 @@ export const matchId = ${gameDetails.matchId};
     fs.writeFileSync("scripts/sportsBetting/config.ts", configContent);
     console.log("Configuration file 'scripts/sportsBetting/config.ts' updated successfully.");
 
-
+    // --- Step 4: Verifying Contract ---
     try {
+        console.log("\nVerifying contract on block explorer...");
         await run("verify:verify", {
             address: sportsMarket.address,
             constructorArguments: args,

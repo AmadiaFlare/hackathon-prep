@@ -20,6 +20,7 @@ const attestationTypeBase = "Web2Json";
 const sourceIdBase = "PublicWeb2";
 
 // JQ filter to parse the API response and format it for our DataTransportObject struct
+// Per the logic of the sportsDapp, if the game has not ended yet this jq will be invalid as it will attempt to convert a null value to a number
 const postProcessJq = `{matchId: .events[0].idEvent | tonumber, homeScore: .events[0].intHomeScore | tonumber, awayScore: .events[0].intAwayScore | tonumber, status: .events[0].strStatus}`;
 const abiSignature = `{
           "components": [
